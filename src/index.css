@@ -12,6 +12,8 @@
 @layer base {
   body {
     font-family: var(--font-poppins);
+    margin: 0;
+    padding: 0;
   }
 }
 
@@ -23,4 +25,11 @@
   .navbar-button {
     @apply flex items-center gap-2 font-medium hover:opacity-80 transition-opacity;
   }
+}
+
+/* index.css */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(to right, #181918, #204820); /* mesmo gradiente da navbar */
 }
