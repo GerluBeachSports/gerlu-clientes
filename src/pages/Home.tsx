@@ -15,11 +15,24 @@ export function Home() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
+  useEffect(() => {
+  getCourts()
+    .then((data) => {
+      console.log('✅ Dados recebidos:', JSON.stringify(data, null, 2))
+      setCourts(data)
+    })
+    .catch((err) => {
+      console.error('❌ Erro:', err)
+    })
+    .finally(() => setLoading(false))
+}, [])
   async function clearSession() {
   await supabase.auth.signOut()
   localStorage.clear()
   window.location.reload()
 }
+
+
 
 // No JSX:
 <button

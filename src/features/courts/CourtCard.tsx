@@ -17,8 +17,7 @@ export function CourtCard({ court }: CourtCardProps) {
   return (
     <article
       onClick={() => navigate(`/courts/${court.id}`)}
-      className="flex items-center gap-4 py-6 border-b border-zinc-200 cursor-pointer"
-    >
+      className="flex items-center gap-4 py-6 border-b border-zinc-200 cursor-pointer">
       <img
         src={court.image_url}
         alt={court.name}

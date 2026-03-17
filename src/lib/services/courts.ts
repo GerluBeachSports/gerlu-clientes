@@ -3,19 +3,54 @@ import { supabase } from '../supabaseClient'
 export async function getCourts() {
   const { data, error } = await supabase
     .from('courts')
-    .select('*')
+    .select(`
+      id,
+      name,
+      image_url,
+      price_per_hour,
+      court_sports (
+        sports (
+          name
+        )
+      )
+    `)
 
   if (error) throw error
-  return data
+
+  // Transforma o retorno no formato que o CourtCard espera
+  return (data ?? []).map((court) => ({
+    id: court.id,
+    name: court.name,
+    image_url: court.image_url,
+    price: court.price_per_hour,
+    sports: court.court_sports?.map((cs: any) => cs.sports?.name).filter(Boolean) ?? []
+  }))
 }
 
 export async function getCourtById(id: string) {
   const { data, error } = await supabase
     .from('courts')
-    .select('*')
+    .select(`
+      id,
+      name,
+      image_url,
+      price_per_hour,
+      court_sports (
+        sports (
+          name
+        )
+      )
+    `)
     .eq('id', id)
     .single()
 
   if (error) throw error
-  return data
+
+  return {
+    id: data.id,
+    name: data.name,
+    image_url: data.image_url,
+    price: data.price_per_hour,
+    sports: data.court_sports?.map((cs: any) => cs.sports?.name).filter(Boolean) ?? []
+  }
 }
