@@ -25,11 +25,30 @@ useEffect(() => {
     setName('')
     setPhone('')
     setProfileLoaded(false)
+    return
   }
+
+  // Busca pelo id da sessão Auth
+  supabase.auth.getUser().then(async ({ data: { user } }) => {
+    if (!user) return
+
+    const { data } = await supabase
+      .from('users')
+      .select('fullname, phone')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (data) {
+      setName(data.fullname ?? '')
+      setPhone(data.phone ?? '')
+      setProfileLoaded(true)
+    }
+  })
 }, [isOpen])
 
-// Adicione esse novo — busca perfil quando telefone tem 10+ dígitos
 useEffect(() => {
+  if (profileLoaded) return // já carregou, não precisa buscar
+  
   const digits = phone.replace(/\D/g, '')
   if (digits.length < 10) return
 
@@ -44,10 +63,12 @@ useEffect(() => {
       setName(data.fullname ?? '')
       setProfileLoaded(true)
     }
-  }, 500) // aguarda 500ms após parar de digitar
+  }, 500)
 
   return () => clearTimeout(timer)
-}, [phone])
+}, [phone, profileLoaded])
+
+if (!isOpen) return null
 
 
   const formattedDate = date.toLocaleDateString('pt-BR', {
@@ -177,12 +198,6 @@ useEffect(() => {
           {profileLoaded && (
             <p className="text-xs text-zinc-400">
               Usando perfil salvo.{' '}
-              <button
-                className="text-[#204820] underline"
-                onClick={() => setProfileLoaded(false)}
-              >
-                Alterar
-              </button>
             </p>
           )}
 

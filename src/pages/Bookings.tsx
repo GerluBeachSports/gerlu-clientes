@@ -43,7 +43,8 @@ export function Bookings() {
   const [selectedDay, setSelectedDay] = useState<Date>(days[0])
   const [court, setCourt] = useState<any>(null)
   const [selectedSport, setSelectedSport] = useState<any>(null)
-  const [availableSlots, setAvailableSlots] = useState<{ [period: string]: string[] }>({})
+  const [allSlots, setAllSlots] = useState<{ [period: string]: string[] }>({})
+  const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -55,9 +56,9 @@ export function Bookings() {
       if (data.court_sports?.length) setSelectedSport(data.court_sports[0])
       setLoading(false)
     }).catch((err) => {
-  console.error('Erro ao carregar quadra:', JSON.stringify(err))
-  setLoading(false)
-})
+      console.error('Erro ao carregar quadra:', JSON.stringify(err))
+      setLoading(false)
+    })
   }, [id])
 
   useEffect(() => {
@@ -69,19 +70,19 @@ export function Bookings() {
     )
 
     if (!interval) {
-      setAvailableSlots({})
+      setAllSlots({})
+      setBookedTimes([])
       return
     }
 
-    const allSlots = generateSlots(interval.open_time, interval.close_time)
     const dateStr = selectedDay.toISOString().split('T')[0]
 
     getBookedSlots(selectedSport.id, dateStr).then((booked: { booking_start: string }[]) => {
-      const bookedTimes = booked.map((b) =>
+      const times = booked.map((b) =>
         new Date(b.booking_start).toTimeString().slice(0, 5)
       )
-      const free = allSlots.filter((s) => !bookedTimes.includes(s))
-      setAvailableSlots(groupByPeriod(free))
+      setBookedTimes(times)
+      setAllSlots(groupByPeriod(generateSlots(interval.open_time, interval.close_time)))
     })
   }, [court, selectedDay, selectedSport])
 
@@ -169,27 +170,34 @@ export function Bookings() {
         <p className="text-sm text-[#181918]">
           Que horas vamos <strong>jogar?</strong>
         </p>
-        {Object.keys(availableSlots).length === 0 ? (
+        {Object.keys(allSlots).length === 0 ? (
           <p className="text-sm text-zinc-400">Sem horários disponíveis para este dia.</p>
         ) : (
-          Object.entries(availableSlots).map(([period, times]) => (
+          Object.entries(allSlots).map(([period, times]) => (
             <div key={period} className="space-y-2">
               <span className="inline-block gradient-background text-white text-xs px-3 py-1 rounded-full">
                 {period}
               </span>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {times.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
-                      ${selectedTime === time
-                        ? 'gradient-background text-white border-transparent'
-                        : 'text-[#181918] border-zinc-300 hover:bg-zinc-50'}`}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {times.map((time) => {
+                  const isBooked = bookedTimes.includes(time)
+                  const isSelected = selectedTime === time
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => !isBooked && setSelectedTime(time)}
+                      disabled={isBooked}
+                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
+                        ${isBooked
+                          ? 'bg-zinc-100 text-zinc-300 border-zinc-200 cursor-not-allowed line-through'
+                          : isSelected
+                            ? 'gradient-background text-white border-transparent'
+                            : 'text-[#181918] border-zinc-300 hover:bg-zinc-50'}`}
+                    >
+                      {time}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ))
@@ -216,7 +224,7 @@ export function Bookings() {
             const bookingStart = `${dateStr}T${selectedTime}:00`
             await createBooking(selectedSport.id, bookingStart, court.price_per_hour)
             setShowModal(false)
-            navigate(-1)
+            navigate('/Agendamentos')
           }}
           court={court}
           sport={selectedSport.sports}
