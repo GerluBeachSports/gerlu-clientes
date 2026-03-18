@@ -25,19 +25,19 @@ export function Agendamentos() {
       }
 
       const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          booking_date,
-          booking_time,
-          courts (
-            name,
-            image_url,
-            sports
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('booking_date', { ascending: true })
+      .from('bookings')
+      .select(`
+        id,
+        booking_start,
+        booking_end,
+        price,
+        court_sports (
+          courts ( name, image_url ),
+          sports ( name )
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('booking_start', { ascending: true })
 
       if (error) {
         console.error(error)
@@ -46,13 +46,16 @@ export function Agendamentos() {
       }
 
       const formatted: Agendamento[] = (data ?? []).map((b: any) => ({
-        id: b.id,
-        courtName: b.courts?.name ?? '—',
-        sport: b.courts?.sports?.[0] ?? '—',
-        date: new Date(b.booking_date).toLocaleDateString('pt-BR'),
-        time: b.booking_time?.slice(0, 5),
-        image_url: b.courts?.image_url ?? '',
-      }))
+      id: b.id,
+      courtName: b.court_sports?.courts?.name ?? '—',
+      sport: b.court_sports?.sports?.name ?? '—',
+      date: new Date(b.booking_start).toLocaleDateString('pt-BR'),
+      time: new Date(b.booking_start).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      image_url: b.court_sports?.courts?.image_url ?? '',
+    }))
 
       setAgendamentos(formatted)
       setLoading(false)
@@ -64,6 +67,7 @@ export function Agendamentos() {
   if (loading) {
     return <p className="p-4 text-zinc-400 text-sm">Carregando...</p>
   }
+  
 
   return (
     <div className="px-1 py-3 space-y-6">

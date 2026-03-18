@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 
 
 type Profile = {
-  full_name: string
+  fullname: string
   phone: string | null
 }
 
@@ -31,12 +31,12 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
       const user = data.user
       if (!user) throw new Error('Erro ao criar sessão.')
 
-      // 2. Salva perfil na tabela profiles
+      // 2. Salva perfil na tabela users
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .insert({
           id: user.id,
-          full_name: fullName,
+          fullname: fullName,
           phone: phone,
         })
 
@@ -110,7 +110,7 @@ export function Profile() {
 
     // Checa se o perfil existe na tabela
     const { data: profileData, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
@@ -178,7 +178,7 @@ export function Profile() {
         <div className="space-y-1">
           <label className="text-xs text-zinc-500 font-medium">Nome</label>
           <div className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-[#181918] text-sm bg-zinc-50">
-            {profile?.full_name ?? '—'}
+            {profile?.fullname ?? '—'}
           </div>
         </div>
 

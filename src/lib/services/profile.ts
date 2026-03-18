@@ -4,7 +4,7 @@ export async function getProfile() {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('id', user!.id)
     .single()
@@ -13,12 +13,12 @@ export async function getProfile() {
   return data
 }
 
-export async function updateProfile(full_name: string, phone: string) {
+export async function updateProfile(fullname: string, phone: string) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data, error } = await supabase
-    .from('profiles')
-    .update({ full_name, phone })
+    .from('users')
+    .update({ fullname, phone })
     .eq('id', user!.id)
     .select()
     .single()
