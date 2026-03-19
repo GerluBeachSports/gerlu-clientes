@@ -2,21 +2,27 @@ import { Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-
 type Profile = {
   fullname: string
   phone: string | null
 }
 
 function AuthModal({ onSuccess }: { onSuccess: () => void }) {
+  const [step, setStep] = useState<'phone' | 'register'>('phone')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit() {
-    if (!fullName || !phone) {
-      setError('Preencha todos os campos.')
+  function getFakeEmail(rawPhone: string) {
+    const digits = rawPhone.replace(/\D/g, '')
+    return `${digits}@quadra.app`
+  }
+
+  // Passo 1 — verifica se o telefone já existe
+  async function handleCheckPhone() {
+    if (!phone) {
+      setError('Digite seu telefone.')
       return
     }
 
@@ -24,27 +30,66 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
 
     try {
-      // 1. Cria sessão anônima
-      const { data, error: signInError } = await supabase.auth.signInAnonymously()
-      if (signInError) throw signInError
+      const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', phone)
+        .maybeSingle()
+
+      if (existing) {
+        // Telefone já cadastrado — loga direto
+        const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: getFakeEmail(phone),
+          password: fakePassword,
+        })
+        if (signInError) throw new Error('Erro ao entrar. Tente novamente.')
+        onSuccess()
+      } else {
+        // Telefone novo — pede o nome
+        setStep('register')
+      }
+    } catch (err: any) {
+      setError(err.message ?? 'Erro ao verificar telefone.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Passo 2 — cadastra novo usuário
+  async function handleRegister() {
+    if (!fullName) {
+      setError('Digite seu nome.')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const fakeEmail = getFakeEmail(phone)
+      const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: fakeEmail,
+        password: fakePassword,
+        options: { emailRedirectTo: undefined },
+      })
+
+      if (signUpError) throw signUpError
 
       const user = data.user
-      if (!user) throw new Error('Erro ao criar sessão.')
+      if (!user) throw new Error('Erro ao criar conta.')
 
-      // 2. Salva perfil na tabela users
       const { error: profileError } = await supabase
         .from('users')
-        .insert({
-          id: user.id,
-          fullname: fullName,
-          phone: phone,
-        })
+        .insert({ id: user.id, fullname: fullName, phone })
 
       if (profileError) throw profileError
 
       onSuccess()
     } catch (err: any) {
-      setError(err.message ?? 'Erro ao entrar.')
+      setError(err.message ?? 'Erro ao cadastrar.')
     } finally {
       setLoading(false)
     }
@@ -54,43 +99,72 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
       <div className="bg-white w-full max-w-md rounded-t-3xl px-6 py-8 space-y-6">
 
-        <h2 className="text-xl font-bold font-montserrat text-[#181918]">
-          Identificação
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold font-montserrat text-[#181918]">
+            {step === 'phone' ? 'Identificação' : 'Qual o seu nome?'}
+          </h2>
+          <p className="text-zinc-400 text-sm mt-1">
+            {step === 'phone'
+              ? 'Digite seu telefone para entrar ou cadastrar.'
+              : 'Primeira vez aqui! Só precisamos do seu nome.'}
+          </p>
+        </div>
 
         <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs text-zinc-500 font-medium">Nome completo</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              placeholder="João da Silva"
-              className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-[#181918] text-sm bg-zinc-50 outline-none focus:border-[#204820]"
-            />
-          </div>
+          {step === 'phone' && (
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-500 font-medium">Telefone</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="(62) 99999-9999"
+                className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-[#181918] text-sm bg-zinc-50 outline-none focus:border-[#204820]"
+              />
+            </div>
+          )}
 
-          <div className="space-y-1">
-            <label className="text-xs text-zinc-500 font-medium">Telefone de contato</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="(62) 99999-9999"
-              className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-[#181918] text-sm bg-zinc-50 outline-none focus:border-[#204820]"
-            />
-          </div>
+          {step === 'register' && (
+            <>
+              <div className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-zinc-400 text-sm bg-zinc-50">
+                {phone}
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-zinc-500 font-medium">Nome completo</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="João da Silva"
+                  autoFocus
+                  className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-[#181918] text-sm bg-zinc-50 outline-none focus:border-[#204820]"
+                />
+              </div>
+            </>
+          )}
 
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="gradient-background text-white font-semibold w-full py-3 rounded-2xl disabled:opacity-60"
-        >
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={step === 'phone' ? handleCheckPhone : handleRegister}
+            disabled={loading}
+            className="gradient-background text-white font-semibold w-full py-3 rounded-2xl disabled:opacity-60"
+          >
+            {loading ? 'Aguarde...' : step === 'phone' ? 'Continuar' : 'Entrar'}
+          </button>
+
+          {step === 'register' && (
+            <button
+              onClick={() => { setStep('phone'); setError(null) }}
+              className="w-full py-3 text-sm text-zinc-400 font-medium"
+            >
+              Voltar
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   )
@@ -102,34 +176,38 @@ export function Profile() {
   const [showModal, setShowModal] = useState(false)
 
   function loadProfile() {
-  supabase.auth.getUser().then(async ({ data: { user } }) => {
-    if (!user) {
-      setLoggedIn(false)
-      return
-    }
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) {
+        setLoggedIn(false)
+        return
+      }
 
-    // Checa se o perfil existe na tabela
-    const { data: profileData, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+      const { data: profileData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
 
-    if (error || !profileData) {
-      // Sessão existe mas perfil foi deletado — desloga e volta pro cadastro
-      await supabase.auth.signOut()
-      setLoggedIn(false)
-      return
-    }
+      if (error || !profileData) {
+        await supabase.auth.signOut()
+        setLoggedIn(false)
+        return
+      }
 
-    setLoggedIn(true)
-    setProfile(profileData)
-  })
-}
+      setLoggedIn(true)
+      setProfile(profileData)
+    })
+  }
 
   useEffect(() => {
     loadProfile()
   }, [])
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    setProfile(null)
+    setLoggedIn(false)
+  }
 
   if (loggedIn === null) {
     return <p className="p-4 text-zinc-400 text-sm">Carregando...</p>
@@ -189,6 +267,13 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={handleSignOut}
+        className="w-full py-3 rounded-2xl border border-zinc-300 text-zinc-500 text-sm font-semibold hover:bg-zinc-50 transition-colors"
+      >
+        Sair
+      </button>
     </section>
   )
 }
