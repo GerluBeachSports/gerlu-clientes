@@ -3,16 +3,8 @@ import { ChevronLeft, Info } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { getCourtById, getBookedSlots, createBooking } from '../lib/services/bookings'
 import { BookingModal } from '../features/bookings/BookingCalendar'
+import { getAvailableSlots } from '../../src/lib/services/disponibilidade'
 
-function generateSlots(openTime: string, closeTime: string): string[] {
-  const slots: string[] = []
-  const [openH] = openTime.split(':').map(Number)
-  const [closeH] = closeTime.split(':').map(Number)
-  for (let h = openH; h < closeH; h++) {
-    slots.push(`${String(h).padStart(2, '0')}:00`)
-  }
-  return slots
-}
 
 function groupByPeriod(slots: string[]): { [period: string]: string[] } {
   const groups: { [period: string]: string[] } = { Manhã: [], Tarde: [], Noite: [] }
@@ -49,6 +41,7 @@ export function Bookings() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
 
+  
   useEffect(() => {
     if (!id) return
     getCourtById(id).then((data: Awaited<ReturnType<typeof getCourtById>>) => {
@@ -62,29 +55,24 @@ export function Bookings() {
   }, [id])
 
   useEffect(() => {
-    if (!court || !selectedDay || !selectedSport) return
+  if (!court || !selectedDay || !selectedSport) return
 
-    const dow = selectedDay.getDay()
-    const interval = court.court_opening_interval?.find(
-      (i: any) => i.day_of_week === dow
+  const dateStr = selectedDay.toISOString().split('T')[0]
+
+  Promise.all([
+    getAvailableSlots(court.id, dateStr), // já lida com exceptions + intervalo padrão
+    getBookedSlots(selectedSport.id, dateStr),
+  ]).then(([available, booked]) => {
+    const bookedTimes = booked.map((b: any) =>
+      new Date(b.booking_start).toTimeString().slice(0, 5)
     )
+    setBookedTimes(bookedTimes)
 
-    if (!interval) {
-      setAllSlots({})
-      setBookedTimes([])
-      return
-    }
-
-    const dateStr = selectedDay.toISOString().split('T')[0]
-
-    getBookedSlots(selectedSport.id, dateStr).then((booked: { booking_start: string }[]) => {
-      const times = booked.map((b) =>
-        new Date(b.booking_start).toTimeString().slice(0, 5)
-      )
-      setBookedTimes(times)
-      setAllSlots(groupByPeriod(generateSlots(interval.open_time, interval.close_time)))
-    })
-  }, [court, selectedDay, selectedSport])
+    // available já vem como TimeSlot[], pega só o start
+    const times = available.map((s) => s.start)
+    setAllSlots(groupByPeriod(times))
+  })
+}, [court, selectedDay, selectedSport])
 
   if (loading) return <p className="p-4 text-zinc-400">Carregando...</p>
   if (!court) return <p className="p-4 text-zinc-400">Quadra não encontrada.</p>
