@@ -53,9 +53,13 @@ export function Home() {
             marcar o play de hoje?
           </span>
         </h1>
-        <span className="text-[#181918] text-sm w-full flex items-center gap-1">
-          ver localização <Info size={14} />
-        </span>
+        <a href="https://maps.app.goo.gl/Xy3jowSaDHdPq8WT7"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#181918] text-sm w-full flex items-center gap-1"
+        >
+        ver localização <Info size={14} />
+        </a>
       </section>
 
       {/*<button
