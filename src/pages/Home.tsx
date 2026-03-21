@@ -18,7 +18,6 @@ export function Home() {
   useEffect(() => {
   getCourts()
     .then((data) => {
-      console.log('✅ Dados recebidos:', JSON.stringify(data, null, 2))
       setCourts(data)
     })
     .catch((err) => {
@@ -46,7 +45,7 @@ export function Home() {
     <section className="space-y-5">
       <section className="space-y-3 w-50%">
         <h1 className="text-2xl font-bold font-montserrat">
-          <span className="block text-[#181918] px-2 py-1">
+          <span className="block text-gradientblack px-2 py-1">
             Eai bora,
           </span>
           <span className="block gradient-background text-white px-1 py-1 max-w-80">
@@ -56,7 +55,7 @@ export function Home() {
         <a href="https://maps.app.goo.gl/Xy3jowSaDHdPq8WT7"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[#181918] text-sm w-full flex items-center gap-1"
+        className="text-gradientblack text-sm w-full flex items-center gap-1"
         >
         ver localização <Info size={14} />
         </a>
