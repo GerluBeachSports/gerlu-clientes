@@ -45,11 +45,17 @@ export async function createBooking(
   courtSportId: string,
   bookingStart: string,
   price: number,
-  durationMinutes: number = 60  // novo parâmetro
+  durationMinutes: number = 60
 ) {
   const { data: { user } } = await supabase.auth.getUser()
-  const bookingEnd = new Date(bookingStart)
-  bookingEnd.setMinutes(bookingEnd.getMinutes() + durationMinutes) // ← usa duração real
+
+  // Calcula o end direto na string, sem new Date() para evitar timezone
+  const [datePart, timePart] = bookingStart.split('T')
+  const [h, m] = timePart.slice(0, 5).split(':').map(Number)
+  const totalMinutes = h * 60 + m + durationMinutes
+  const endH = String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+  const endM = String(totalMinutes % 60).padStart(2, '0')
+  const bookingEnd = `${datePart}T${endH}:${endM}:00`
 
   const { data, error } = await supabase
     .from('bookings')
@@ -57,7 +63,7 @@ export async function createBooking(
       court_sport_id: courtSportId,
       user_id: user!.id,
       booking_start: bookingStart,
-      booking_end: bookingEnd.toISOString(),
+      booking_end: bookingEnd,
       price,
     })
     .select()
