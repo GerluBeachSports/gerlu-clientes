@@ -7,7 +7,9 @@ type Agendamento = {
   courtName: string
   sport: string
   date: string
-  time: string
+  timeStart: string
+  timeEnd: string
+  durationMinutes: number
   image_url: string
 }
 
@@ -39,16 +41,22 @@ export function Agendamentos() {
 
     if (error) { console.error(error); setLoading(false); return }
 
-    const formatted: Agendamento[] = (data ?? []).map((b: any) => ({
-      id: b.id,
-      courtName: b.court_sports?.courts?.name ?? '—',
-      sport: b.court_sports?.sports?.name ?? '—',
-      date: new Date(b.booking_start).toLocaleDateString('pt-BR'),
-      time: new Date(b.booking_start).toLocaleTimeString('pt-BR', {
-        hour: '2-digit', minute: '2-digit',
-      }),
-      image_url: b.court_sports?.courts?.image_url ?? '',
-    }))
+    const formatted: Agendamento[] = (data ?? []).map((b: any) => {
+      const start = new Date(b.booking_start)
+      const end = new Date(b.booking_end)
+      const durationMinutes = (end.getTime() - start.getTime()) / 60000
+
+      return {
+        id: b.id,
+        courtName: b.court_sports?.courts?.name ?? '—',
+        sport: b.court_sports?.sports?.name ?? '—',
+        date: start.toLocaleDateString('pt-BR'),
+        timeStart: start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        timeEnd: end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        durationMinutes,
+        image_url: b.court_sports?.courts?.image_url ?? '',
+      }
+    })
 
     setAgendamentos(formatted)
     setLoading(false)
@@ -98,7 +106,7 @@ export function Agendamentos() {
             <div key={ag.id} className="space-y-2">
               <article
                 onClick={() => navigate(`/agendamentos/${ag.id}`)}
-                className="flex items-center gap-3 cursor-pointer"
+                className="flex items-center gap-3"
               >
                 <img
                   src={ag.image_url}
@@ -106,23 +114,32 @@ export function Agendamentos() {
                   className="w-24 h-32 rounded-xl object-cover flex-shrink-0"
                 />
                 <div className="flex-1">
-                  <p className="font-semibold text-[#181918] text-xl leading-tight mb-8">
-                    {ag.courtName}
-                  </p>
+                  <div className="flex items-center gap-2 mb-8">
+                    <p className="font-semibold text-[#181918] text-xl leading-tight">
+                      {ag.courtName}
+                    </p>
+                    {ag.durationMinutes >= 120 && (
+                      <span className="gradient-background text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        2x1
+                      </span>
+                    )}
+                  </div>
                   <div>
                     <p className="text-sm text-zinc-500">{ag.sport}</p>
                     <p className="text-sm text-zinc-500">{ag.date}</p>
                   </div>
                 </div>
-                <div className="gradient-background text-white text-sm font-semibold px-4 py-2 rounded-xl flex-shrink-0 mt-20 mr-4">
-                  {ag.time}
-                </div>
-              </article>
 
-              {/* Botão cancelar / confirmação */}
+                {/* Horário início → fim */}
+                {/* Horário início → fim */}
+                <div className="gradient-background text-white text-sm font-semibold px-4 py-2 rounded-xl flex-shrink-0 mt-20 mr-4 text-center whitespace-nowrap">
+                  {ag.timeStart} - {ag.timeEnd}
+                </div>
+                </article>
+
               {confirmId === ag.id ? (
-                <div className="flex items-center gap-2 pl-1">
-                  <p className="text-xs text-zinc-500 flex-1">Confirma o cancelamento?</p>
+                <div className="flex items-center gap-2 pl-1 cursor-pointer">
+                  <p className="text-xs text-zinc-500 flex-1 cursor-pointer">Confirma o cancelamento?</p>
                   <button
                     onClick={() => handleCancel(ag.id)}
                     disabled={cancelingId === ag.id}
