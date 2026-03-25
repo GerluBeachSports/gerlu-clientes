@@ -85,15 +85,40 @@ function getPricingForTime(time: string) {
     getBookedSlots(allCourtSportIds, dateStr),
     getCourtPricing(court.id, dayOfWeek),
   ]).then(([available, booked, pricing]) => {
-    const bookedTimes = booked.map((b: any) =>
-      new Date(b.booking_start).toTimeString().slice(0, 5)
-    )
-    setBookedTimes(bookedTimes)
-    setPricingRules(pricing)
+  const rawBookedTimes = booked.map((b: any) =>
+    new Date(b.booking_start).toTimeString().slice(0, 5)
+  )
 
-    const times = available.map((s) => s.start)
-    setAllSlots(groupByPeriod(times))
-  })
+  // Para cada horário reservado, verifica se é slot duplo e bloqueia o próximo também
+  const expandedBookedTimes = [...rawBookedTimes]
+
+  for (const time of rawBookedTimes) {
+    const rule = pricing.find((r: any) => {
+      const [rh, rm] = r.start_time.slice(0, 5).split(':').map(Number)
+      const [eh, em] = r.end_time.slice(0, 5).split(':').map(Number)
+      const [h, m] = time.split(':').map(Number)
+      const slotMin = h * 60 + m
+      return slotMin >= rh * 60 + rm && slotMin < eh * 60 + em
+    })
+
+    if (rule?.slot_duration_minutes >= 120) {
+      // Adiciona os horários seguintes conforme a duração
+      const [h, m] = time.split(':').map(Number)
+      const slots = rule!.slot_duration_minutes / 60 // ex: 2 slots de 1h
+      for (let i = 1; i < slots; i++) {
+        const nextH = String(h + i).padStart(2, '0')
+        const nextTime = `${nextH}:${String(m).padStart(2, '0')}`
+        expandedBookedTimes.push(nextTime)
+      }
+    }
+  }
+
+  setBookedTimes(expandedBookedTimes)
+  setPricingRules(pricing)
+
+  const times = available.map((s) => s.start)
+  setAllSlots(groupByPeriod(times))
+})
 }, [court, selectedDay, selectedSport])
 
   if (loading) return <p className="p-4 text-zinc-400">Carregando...</p>
@@ -152,6 +177,28 @@ function getPricingForTime(time: string) {
           {selectedDay.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
+      {/* Banner Day Use — só aparece no sábado */}
+      {selectedDay.getDay() === 6 && (
+        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-green-600 font-montserrat">Day Use — Sábado</h3>
+          </div>
+          <p className="text-xs text-green-500 leading-relaxed">
+            Aproveite o sábado completo com acesso a tudo que o espaço tem a oferecer!
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {[
+              { label: 'Quadras', price: 'R$ 15,00' },
+              { label: 'Quadra + Piscina + Sauna', price: 'R$ 20,00' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-2 bg-white border border-green-200 rounded-xl px-3 py-2">
+                <span className="text-sm font-semibold text-[#181918]">{item.label}</span>
+                <span className="text-xs font-bold text-green-500">{item.price}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Esporte */}
       <div className="space-y-3">
@@ -208,7 +255,7 @@ function getPricingForTime(time: string) {
                     >
                     {time}
                     {isDouble && (
-                      <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                      <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                         2x1
                       </span>
                     )}
@@ -240,7 +287,6 @@ function getPricingForTime(time: string) {
         const dateStr = selectedDay.toISOString().split('T')[0]
         const bookingStart = `${dateStr}T${selectedTime}:00`
         const duration = selectedPricing?.slot_duration_minutes ?? 60
-        const price = selectedPricing?.price ?? 0
         await createBooking(selectedSport.id, bookingStart, selectedPricing?.price ?? 0, duration)
         setShowModal(false)
         navigate('/Agendamentos')
