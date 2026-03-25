@@ -25,6 +25,13 @@ function getNextDays(n = 7) {
   })
 }
 
+function formatDate(d: Date) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const DAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
 export function Bookings() {
@@ -74,7 +81,7 @@ function getPricingForTime(time: string) {
   useEffect(() => {
   if (!court || !selectedDay || !selectedSport) return
 
-  const dateStr = selectedDay.toISOString().split('T')[0]
+  const dateStr = formatDate(selectedDay)
   const dayOfWeek = selectedDay.getDay()
   const allCourtSportIds = court.court_sports?.map((cs: any) => cs.id) ?? []
 
@@ -86,7 +93,7 @@ function getPricingForTime(time: string) {
     getCourtPricing(court.id, dayOfWeek),
   ]).then(([available, booked, pricing]) => {
   const rawBookedTimes = booked.map((b: any) =>
-    new Date(b.booking_start).toTimeString().slice(0, 5)
+  b.booking_start.slice(11, 16) // pega direto "HH:MM" da string sem converter timezone
   )
 
   // Para cada horário reservado, verifica se é slot duplo e bloqueia o próximo também
@@ -284,7 +291,7 @@ function getPricingForTime(time: string) {
       isOpen={showModal}
       onClose={() => setShowModal(false)}
       onConfirm={async () => {
-        const dateStr = selectedDay.toISOString().split('T')[0]
+        const dateStr = formatDate(selectedDay)
         const bookingStart = `${dateStr}T${selectedTime}:00`
         const duration = selectedPricing?.slot_duration_minutes ?? 60
         await createBooking(selectedSport.id, bookingStart, selectedPricing?.price ?? 0, duration)

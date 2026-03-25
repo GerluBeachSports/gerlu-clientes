@@ -130,7 +130,8 @@ export async function getAvailableSlots(
 
   // ── Step 2: No exception — use regular weekly schedule ────────────────────
   // day_of_week: 0 = Sunday ... 6 = Saturday (matches JS getDay())
-  const dayOfWeek = new Date(date).getDay()
+  const [year, month, day] = date.split('-').map(Number)
+  const dayOfWeek = new Date(year, month - 1, day).getDay()
 
   const { data: intervalData, error: intervalError } = await supabase
     .from('court_opening_interval')
