@@ -8,7 +8,6 @@ export async function getCourtById(courtId: string) {
       id,
       name,
       image_url,
-      price_per_hour,
       court_sports (
         id,
         sports ( id, name )
@@ -27,14 +26,14 @@ export async function getCourtById(courtId: string) {
 }
 
 // Busca horários já reservados para uma court_sport em um intervalo de dia
-export async function getBookedSlots(courtSportId: string, date: string) {
+export async function getBookedSlots(courtSportIds: string[], date: string) {
   const start = `${date}T00:00:00`
   const end   = `${date}T23:59:59`
 
   const { data, error } = await supabase
     .from('bookings')
     .select('booking_start, booking_end')
-    .eq('court_sport_id', courtSportId)
+    .in('court_sport_id', courtSportIds)  // ← .in() em vez de .eq()
     .gte('booking_start', start)
     .lte('booking_start', end)
 
@@ -42,16 +41,15 @@ export async function getBookedSlots(courtSportId: string, date: string) {
   return data ?? []
 }
 
-// Cria uma reserva de 1 hora
 export async function createBooking(
   courtSportId: string,
-  bookingStart: string,  // ex: "2026-08-20T10:00:00"
-  price: number
+  bookingStart: string,
+  price: number,
+  durationMinutes: number = 60  // novo parâmetro
 ) {
   const { data: { user } } = await supabase.auth.getUser()
-
   const bookingEnd = new Date(bookingStart)
-  bookingEnd.setHours(bookingEnd.getHours() + 1)
+  bookingEnd.setMinutes(bookingEnd.getMinutes() + durationMinutes) // ← usa duração real
 
   const { data, error } = await supabase
     .from('bookings')
@@ -90,4 +88,17 @@ export async function getMyBookings() {
 
   if (error) throw error
   return data
+}
+
+// Busca as regras de preço da quadra para um dia da semana
+export async function getCourtPricing(courtId: string, dayOfWeek: number) {
+  const { data, error } = await supabase
+    .from('court_pricing')
+    .select('start_time, end_time, price, slot_duration_minutes')
+    .eq('court_id', courtId)
+    .eq('day_of_week', dayOfWeek)
+    .order('start_time', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
 }

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { CourtCard } from '../features/courts/CourtCard'
 import type { Court } from '../features/courts/CourtCard'
 import { getCourts } from '../lib/services/courts'
-import { supabase } from '../lib/supabaseClient'
 
 export function Home() {
   const [courts, setCourts] = useState<Court[]>([])
@@ -25,21 +24,13 @@ export function Home() {
     })
     .finally(() => setLoading(false))
 }, [])
-  async function clearSession() {
+  
+/*async function clearSession() {
   await supabase.auth.signOut()
   localStorage.clear()
   window.location.reload()
-}
+} */
 
-
-
-// No JSX:
-<button
-  onClick={clearSession}
-  className="fixed bottom-4 right-4 bg-red-500 text-white text-xs px-3 py-2 rounded-xl z-50"
->
-  🗑️ Limpar sessão
-</button>
 
   return (
     <section className="space-y-5">

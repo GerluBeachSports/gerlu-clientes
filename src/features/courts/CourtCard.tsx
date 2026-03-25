@@ -34,12 +34,6 @@ export function CourtCard({ court }: CourtCardProps) {
             <p key={sport}>{sport}</p>
           ))}
         </div>
-
-        <div className="flex justify-end">
-          <span className="border border-zinc-400 rounded-xl px-3 py-1 text-sm font-semibold text-[#181918] mr-4">
-            R$ {court.price},00
-          </span>
-        </div>
       </div>
     </article>
   )

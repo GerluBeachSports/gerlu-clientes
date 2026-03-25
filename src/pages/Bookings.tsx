@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Info } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { getCourtById, getBookedSlots, createBooking } from '../lib/services/bookings'
+import { getCourtById, getBookedSlots, createBooking,  getCourtPricing } from '../lib/services/bookings'
 import { BookingModal } from '../features/bookings/BookingCalendar'
 import { getAvailableSlots } from '../../src/lib/services/disponibilidade'
 
@@ -40,6 +40,23 @@ export function Bookings() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [pricingRules, setPricingRules] = useState<any[]>([])
+  // Troque as linhas 42-43 por isso:
+  const selectedPricing = (selectedTime && pricingRules.length > 0)
+  ? getPricingForTime(selectedTime)
+  : null
+
+
+  // Função helper: dado um horário "HH:MM", acha a regra de pricing
+function getPricingForTime(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  const slotMinutes = h * 60 + m
+  return pricingRules.find((rule) => {
+    const [rh, rm] = rule.start_time.slice(0, 5).split(':').map(Number)
+    const [eh, em] = rule.end_time.slice(0, 5).split(':').map(Number)
+    return slotMinutes >= rh * 60 + rm && slotMinutes < eh * 60 + em
+  }) ?? null
+}
 
   
   useEffect(() => {
@@ -58,17 +75,22 @@ export function Bookings() {
   if (!court || !selectedDay || !selectedSport) return
 
   const dateStr = selectedDay.toISOString().split('T')[0]
+  const dayOfWeek = selectedDay.getDay()
+  const allCourtSportIds = court.court_sports?.map((cs: any) => cs.id) ?? []
+
+  if (allCourtSportIds.length === 0) return  // ← segurança extra
 
   Promise.all([
-    getAvailableSlots(court.id, dateStr), // já lida com exceptions + intervalo padrão
-    getBookedSlots(selectedSport.id, dateStr),
-  ]).then(([available, booked]) => {
+    getAvailableSlots(court.id, dateStr),
+    getBookedSlots(allCourtSportIds, dateStr),
+    getCourtPricing(court.id, dayOfWeek),
+  ]).then(([available, booked, pricing]) => {
     const bookedTimes = booked.map((b: any) =>
       new Date(b.booking_start).toTimeString().slice(0, 5)
     )
     setBookedTimes(bookedTimes)
+    setPricingRules(pricing)
 
-    // available já vem como TimeSlot[], pega só o start
     const times = available.map((s) => s.start)
     setAllSlots(groupByPeriod(times))
   })
@@ -166,26 +188,33 @@ export function Bookings() {
               <span className="inline-block gradient-background text-white text-xs px-3 py-1 rounded-full">
                 {period}
               </span>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 pt-2 px-2">
                 {times.map((time) => {
-                  const isBooked = bookedTimes.includes(time)
-                  const isSelected = selectedTime === time
-                  return (
-                    <button
-                      key={time}
-                      onClick={() => !isBooked && setSelectedTime(time)}
-                      disabled={isBooked}
-                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
-                        ${isBooked
-                          ? 'bg-zinc-100 text-zinc-300 border-zinc-200 cursor-not-allowed line-through'
-                          : isSelected
-                            ? 'gradient-background text-white border-transparent'
-                            : 'text-[#181918] border-zinc-300 hover:bg-zinc-50'}`}
+                const isBooked = bookedTimes.includes(time)
+                const isSelected = selectedTime === time
+                const rule = getPricingForTime(time)
+                const isDouble = rule?.slot_duration_minutes >= 120
+                return (
+                  <button
+                    key={time}
+                    onClick={() => !isBooked && setSelectedTime(time)}
+                    disabled={isBooked}
+                    className={`relative flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium border transition-colors
+                      ${isBooked
+                        ? 'bg-zinc-100 text-zinc-300 border-zinc-200 cursor-not-allowed line-through'
+                        : isSelected
+                          ? 'gradient-background text-white border-transparent'
+                          : 'text-[#181918] border-zinc-300 hover:bg-zinc-50'}`}
                     >
-                      {time}
-                    </button>
-                  )
-                })}
+                    {time}
+                    {isDouble && (
+                      <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                        2x1
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
               </div>
             </div>
           ))
@@ -202,25 +231,28 @@ export function Bookings() {
         </button>
       )}
 
-      {/* Modal de confirmação */}
+      
       {court && selectedSport && selectedTime && (
-        <BookingModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onConfirm={async () => {
-            const dateStr = selectedDay.toISOString().split('T')[0]
-            const bookingStart = `${dateStr}T${selectedTime}:00`
-            await createBooking(selectedSport.id, bookingStart, court.price_per_hour)
-            setShowModal(false)
-            navigate('/Agendamentos')
-          }}
-          court={court}
-          sport={selectedSport.sports}
-          date={selectedDay}
-          time={selectedTime}
-          price={court.price_per_hour}
-        />
-      )}
+    <BookingModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+      onConfirm={async () => {
+        const dateStr = selectedDay.toISOString().split('T')[0]
+        const bookingStart = `${dateStr}T${selectedTime}:00`
+        const duration = selectedPricing?.slot_duration_minutes ?? 60
+        const price = selectedPricing?.price ?? 0
+        await createBooking(selectedSport.id, bookingStart, selectedPricing?.price ?? 0, duration)
+        setShowModal(false)
+        navigate('/Agendamentos')
+      }}
+      court={court}
+      sport={selectedSport.sports}
+      date={selectedDay}
+      time={selectedTime}
+      price={selectedPricing?.price ?? 0}
+      slotDuration={selectedPricing?.slot_duration_minutes ?? 60}
+    />
+)}
 
     </div>
   )

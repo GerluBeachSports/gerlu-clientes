@@ -11,13 +11,23 @@ type Props = {
   date: Date
   time: string
   price: number
+  slotDuration: number 
 }
 
-export function BookingModal({ isOpen, onClose, onConfirm, court, sport, date, time, price }: Props) {
+export function BookingModal({ isOpen, onClose, onConfirm, court, sport, date, time, price, slotDuration }: Props) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const isDouble = slotDuration >= 120
+
+  function getEndTime(startTime: string, durationMinutes: number) {
+  const [h, m] = startTime.split(':').map(Number)
+  const totalMinutes = h * 60 + m + durationMinutes
+  const endH = Math.floor(totalMinutes / 60) % 24
+  const endM = totalMinutes % 60
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+}
 
   // Substitua o useEffect atual por esse
 useEffect(() => {
@@ -219,10 +229,18 @@ if (!isOpen) return null
           </div>
 
           {/* Preço */}
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-            <span>💵</span>
-            <span>R$ {price.toFixed(2).replace('.', ',')}</span>
-          </div>
+           <div className="flex flex-col gap-1 text-sm font-semibold text-zinc-700">
+    <div className="flex items-center gap-2">
+      <span>💵</span>
+      <span>R$ {price.toFixed(2).replace('.', ',')}</span>
+    </div>
+    {isDouble && (
+      <div className="flex items-center gap-2 text-orange-500 text-xs font-medium">
+        <span>🎉</span>
+        <span>Horário 2x1 — você joga até as {getEndTime(time, slotDuration)}!</span>
+      </div>
+    )}
+  </div>
 
           {/* Botões */}
           <div className="flex gap-3 pt-1">
