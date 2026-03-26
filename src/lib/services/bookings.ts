@@ -30,15 +30,37 @@ export async function getBookedSlots(courtSportIds: string[], date: string) {
   const start = `${date}T00:00:00`
   const end   = `${date}T23:59:59`
 
-  const { data, error } = await supabase
+  const [year, month, day] = date.split('-').map(Number)
+  const dayOfWeek = new Date(year, month - 1, day).getDay()
+
+  // Reservas avulsas
+  const { data: bookings, error: bookingsError } = await supabase
     .from('bookings')
     .select('booking_start, booking_end')
-    .in('court_sport_id', courtSportIds)  // ← .in() em vez de .eq()
+    .in('court_sport_id', courtSportIds)
     .gte('booking_start', start)
     .lte('booking_start', end)
 
-  if (error) throw error
-  return data ?? []
+  if (bookingsError) throw bookingsError
+
+  // Reservas recorrentes ativas no dia
+  const { data: recurring, error: recurringError } = await supabase
+    .from('recurring_bookings')
+    .select('start_time, end_time')
+    .in('court_sport_id', courtSportIds)
+    .eq('day_of_week', dayOfWeek)
+    .lte('valid_from', date)
+    .or(`valid_until.is.null,valid_until.gte.${date}`, { referencedTable: undefined })
+
+  if (recurringError) throw recurringError
+
+  // Normaliza recorrentes para o mesmo formato das reservas avulsas
+  const recurringAsBookings = (recurring ?? []).map(r => ({
+    booking_start: `${date}T${r.start_time.slice(0, 5)}:00`,
+    booking_end:   `${date}T${r.end_time.slice(0, 5)}:00`,
+  }))
+
+  return [...(bookings ?? []), ...recurringAsBookings]
 }
 
 export async function createBooking(

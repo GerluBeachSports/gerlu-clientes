@@ -20,29 +20,24 @@ type ScheduleException = {
   reason: string | null
 }
 
+type RecurringBooking = {
+  start_time: string
+  end_time: string
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Converts "HH:MM:SS" (Postgres time) to total minutes from midnight.
- */
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
   return h * 60 + m
 }
 
-/**
- * Converts total minutes from midnight to "HH:MM".
- */
 function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60).toString().padStart(2, '0')
   const m = (minutes % 60).toString().padStart(2, '0')
   return `${h}:${m}`
 }
 
-/**
- * Generates time slots of `slotDuration` minutes within [openTime, closeTime].
- * Example: open=08:00, close=10:00, duration=60 → ["08:00–09:00", "09:00–10:00"]
- */
 function generateSlots(
   openTime: string,
   closeTime: string,
@@ -63,9 +58,6 @@ function generateSlots(
   return slots
 }
 
-/**
- * Builds slots from one or two time windows (exception may have two windows).
- */
 function slotsFromWindows(
   exception: ScheduleException,
   slotDurationMinutes: number
@@ -83,27 +75,29 @@ function slotsFromWindows(
   return slots
 }
 
+function removeRecurringSlots(
+  slots: TimeSlot[],
+  recurring: RecurringBooking[]
+): TimeSlot[] {
+  return slots.filter(slot =>
+    !recurring.some(
+      r =>
+        r.start_time.slice(0, 5) === slot.start &&
+        r.end_time.slice(0, 5) === slot.end
+    )
+  )
+}
+
 // ─── Main Service ─────────────────────────────────────────────────────────────
 
-/**
- * Returns all available time slots for a given court on a given date.
- *
- * Logic:
- *  1. Check if there is a `court_schedule_exception` for this court + date.
- *     - If found and both open_time / close_time are null → court is CLOSED that day.
- *     - If found with times → use exception windows (supports 2 windows).
- *  2. If no exception → use `court_opening_interval` for the day_of_week.
- *
- * @param courtId            UUID of the court
- * @param date               Date string in "YYYY-MM-DD" format
- * @param slotDurationMinutes Duration of each slot in minutes (default: 60)
- * @returns Array of available TimeSlots, or an empty array if closed / not found
- */
 export async function getAvailableSlots(
   courtId: string,
+  courtSportIds: string[], // ← adicionado
   date: string,
-  slotDurationMinutes = 60
+  slotDurationMinutes = 60,
 ): Promise<TimeSlot[]> {
+  
+
   // ── Step 1: Check for an exception on this specific date ──────────────────
   const { data: exceptionData, error: exceptionError } = await supabase
     .from('court_schedule_exception')
@@ -119,17 +113,12 @@ export async function getAvailableSlots(
 
   if (exceptionData) {
     const exception = exceptionData as ScheduleException
-
-    // Court is explicitly closed (e.g. holiday, maintenance)
-    if (!exception.open_time && !exception.close_time) {
-      return []
-    }
-
+    if (!exception.open_time && !exception.close_time) return []
     return slotsFromWindows(exception, slotDurationMinutes)
   }
 
+  
   // ── Step 2: No exception — use regular weekly schedule ────────────────────
-  // day_of_week: 0 = Sunday ... 6 = Saturday (matches JS getDay())
   const [year, month, day] = date.split('-').map(Number)
   const dayOfWeek = new Date(year, month - 1, day).getDay()
 
@@ -145,26 +134,44 @@ export async function getAvailableSlots(
     return []
   }
 
-  if (!intervalData) {
-    // No schedule defined for this day → court is closed
-    return []
-  }
+  if (!intervalData) return []
 
   const interval = intervalData as OpeningInterval
+  if (!interval.open_time || !interval.close_time) return []
 
-  if (!interval.open_time || !interval.close_time) {
-    return []
-  }
+  let slots = generateSlots(interval.open_time, interval.close_time, slotDurationMinutes)
 
-  return generateSlots(interval.open_time, interval.close_time, slotDurationMinutes)
+  // ── Step 3: Remove slots bloqueados por recurring_bookings ────────────────
+  const [{ data: recurringNoEnd }, { data: recurringWithEnd }] = await Promise.all([
+  supabase
+    .from('recurring_bookings')
+    .select('start_time, end_time')
+    .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
+    .eq('day_of_week', dayOfWeek)
+    .lte('valid_from', date)
+    .is('valid_until', null),
+
+  supabase
+    .from('recurring_bookings')
+    .select('start_time, end_time')
+    .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
+    .eq('day_of_week', dayOfWeek)
+    .lte('valid_from', date)
+    .gte('valid_until', date),
+])
+
+const recurringData = [...(recurringNoEnd ?? []), ...(recurringWithEnd ?? [])]
+
+    if (recurringData.length) {
+      slots = removeRecurringSlots(slots, recurringData as RecurringBooking[])
+    }
+
+  return slots
 }
 
-// ─── Optional: Fetch all days schedule for a court (week view) ────────────────
 
-/**
- * Returns the regular weekly schedule for a court.
- * Useful to render a "hours of operation" summary.
- */
+// ─── Weekly Schedule ──────────────────────────────────────────────────────────
+
 export async function getWeeklySchedule(
   courtId: string
 ): Promise<Record<number, { open: string; close: string } | null>> {

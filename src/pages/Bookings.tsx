@@ -88,7 +88,7 @@ function getPricingForTime(time: string) {
   if (allCourtSportIds.length === 0) return  // ← segurança extra
 
   Promise.all([
-    getAvailableSlots(court.id, dateStr),
+    getAvailableSlots(court.id, allCourtSportIds, dateStr),
     getBookedSlots(allCourtSportIds, dateStr),
     getCourtPricing(court.id, dayOfWeek),
   ]).then(([available, booked, pricing]) => {
@@ -127,6 +127,8 @@ function getPricingForTime(time: string) {
   setAllSlots(groupByPeriod(times))
 })
 }, [court, selectedDay, selectedSport])
+
+
 
   if (loading) return <p className="p-4 text-zinc-400">Carregando...</p>
   if (!court) return <p className="p-4 text-zinc-400">Quadra não encontrada.</p>
