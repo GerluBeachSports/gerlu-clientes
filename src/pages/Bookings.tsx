@@ -155,7 +155,13 @@ function getPricingForTime(time: string) {
       <div className="text-right">
         <h1 className="text-xl font-bold font-montserrat text-[#181918]">{court.name}</h1>
         <button className="flex items-center gap-1 text-sm text-zinc-500 ml-auto">
+          <a href="https://maps.app.goo.gl/Xy3jowSaDHdPq8WT7"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-gradientblack text-sm w-full flex items-center gap-1"
+        >
           Ver localização <Info size={14} />
+          </a>
         </button>
       </div>
 
