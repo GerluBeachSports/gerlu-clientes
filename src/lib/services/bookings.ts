@@ -22,7 +22,15 @@ export async function getCourtById(courtId: string) {
     .single()
 
   if (error) throw error
-  return data
+
+  const HIDDEN_SPORT_ID = '29fcc6d9-cad5-4af5-90c2-59116cad0b25'
+
+  return {
+  ...data,
+  court_sports: data.court_sports.filter(
+    cs => (cs.sports as unknown as { id: string; name: string } | null)?.id !== HIDDEN_SPORT_ID
+  )
+}
 }
 
 // Busca horários já reservados para uma court_sport em um intervalo de dia
