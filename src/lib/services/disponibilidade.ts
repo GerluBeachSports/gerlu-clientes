@@ -25,6 +25,11 @@ type RecurringBooking = {
   end_time: string
 }
 
+type Booking = {
+  booking_start: string
+  booking_end: string
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function timeToMinutes(time: string): number {
@@ -79,24 +84,45 @@ function removeRecurringSlots(
   slots: TimeSlot[],
   recurring: RecurringBooking[]
 ): TimeSlot[] {
-  return slots.filter(slot =>
-    !recurring.some(
-      r =>
-        r.start_time.slice(0, 5) === slot.start &&
-        r.end_time.slice(0, 5) === slot.end
-    )
-  )
+  return slots.filter(slot => {
+    const slotStart = timeToMinutes(slot.start)
+    const slotEnd = timeToMinutes(slot.end)
+
+    return !recurring.some(r => {
+      const rStart = timeToMinutes(r.start_time.slice(0, 5))
+      const rEnd = timeToMinutes(r.end_time.slice(0, 5))
+
+      // Remove o slot se ele sobrepõe com o recurring
+      return slotStart < rEnd && slotEnd > rStart
+    })
+  })
+}
+
+function removeBookedSlots(
+  slots: TimeSlot[],
+  bookings: Booking[]
+): TimeSlot[] {
+  return slots.filter(slot => {
+    const slotStart = timeToMinutes(slot.start)
+    const slotEnd = timeToMinutes(slot.end)
+
+    return !bookings.some(b => {
+      const bStart = timeToMinutes(b.booking_start.slice(11, 16))
+      const bEnd = timeToMinutes(b.booking_end.slice(11, 16))
+
+      return slotStart < bEnd && slotEnd > bStart
+    })
+  })
 }
 
 // ─── Main Service ─────────────────────────────────────────────────────────────
 
 export async function getAvailableSlots(
   courtId: string,
-  courtSportIds: string[], // ← adicionado
+  courtSportIds: string[],
   date: string,
   slotDurationMinutes = 60,
 ): Promise<TimeSlot[]> {
-  
 
   // ── Step 1: Check for an exception on this specific date ──────────────────
   const { data: exceptionData, error: exceptionError } = await supabase
@@ -117,7 +143,6 @@ export async function getAvailableSlots(
     return slotsFromWindows(exception, slotDurationMinutes)
   }
 
-  
   // ── Step 2: No exception — use regular weekly schedule ────────────────────
   const [year, month, day] = date.split('-').map(Number)
   const dayOfWeek = new Date(year, month - 1, day).getDay()
@@ -143,28 +168,45 @@ export async function getAvailableSlots(
 
   // ── Step 3: Remove slots bloqueados por recurring_bookings ────────────────
   const [{ data: recurringNoEnd }, { data: recurringWithEnd }] = await Promise.all([
-  supabase
-    .from('recurring_bookings')
-    .select('start_time, end_time')
-    .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
-    .eq('day_of_week', dayOfWeek)
-    .lte('valid_from', date)
-    .is('valid_until', null),
+    supabase
+      .from('recurring_bookings')
+      .select('start_time, end_time')
+      .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
+      .eq('day_of_week', dayOfWeek)
+      .lte('valid_from', date)
+      .is('valid_until', null),
 
-  supabase
-    .from('recurring_bookings')
-    .select('start_time, end_time')
-    .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
-    .eq('day_of_week', dayOfWeek)
-    .lte('valid_from', date)
-    .gte('valid_until', date),
-])
+    supabase
+      .from('recurring_bookings')
+      .select('start_time, end_time')
+      .filter('court_sport_id', 'in', `(${courtSportIds.join(',')})`)
+      .eq('day_of_week', dayOfWeek)
+      .lte('valid_from', date)
+      .gte('valid_until', date),
+  ])
 
-const recurringData = [...(recurringNoEnd ?? []), ...(recurringWithEnd ?? [])]
+  const recurringData = [...(recurringNoEnd ?? []), ...(recurringWithEnd ?? [])]
 
-    if (recurringData.length) {
-      slots = removeRecurringSlots(slots, recurringData as RecurringBooking[])
-    }
+  if (recurringData.length) {
+    slots = removeRecurringSlots(slots, recurringData as RecurringBooking[])
+  }
+
+  // ── Step 4: Remove slots com bookings avulsos ─────────────────────────────
+  const { data: bookingsData, error: bookingsError } = await supabase
+    .from('bookings')
+    .select('booking_start, booking_end')
+    .in('court_sport_id', courtSportIds)
+    .gte('booking_start', `${date}T00:00:00`)
+    .lte('booking_end', `${date}T23:59:59`)
+
+  if (bookingsError) {
+    console.error('[courtAvailabilityService] Error fetching bookings:', bookingsError)
+    return slots
+  }
+
+  if (bookingsData?.length) {
+    slots = removeBookedSlots(slots, bookingsData as Booking[])
+  }
 
   return slots
 }
