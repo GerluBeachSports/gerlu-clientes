@@ -33,7 +33,7 @@ export function Home() {
 
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 py-8">
       <section className="space-y-3 w-50%">
         <h1 className="text-2xl font-bold font-montserrat">
           <span className="block text-gradientblack px-2 py-1">

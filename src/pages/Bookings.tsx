@@ -134,7 +134,7 @@ function getPricingForTime(time: string) {
   if (!court) return <p className="p-4 text-zinc-400">Quadra não encontrada.</p>
 
   return (
-    <div className="py-6 space-y-6 pb-10">
+    <div className="py-8 space-y-6 pb-10">
 
       {/* Voltar + Imagem */}
       <div className="relative flex justify-end">

@@ -79,7 +79,7 @@ export function Agendamentos() {
   if (loading) return <p className="p-4 text-zinc-400 text-sm">Carregando...</p>
 
   return (
-    <div className="px-1 py-3 space-y-6">
+    <div className="px-1 py-8 space-y-6">
       <h1 className="text-2xl font-bold font-montserrat">
         <span className="block text-[#181918]">Seus</span>
         <span className="inline-block gradient-background text-white px-2 py-1 rounded-sm">
