@@ -253,7 +253,7 @@ if (!isOpen) return null
             <button
               onClick={handleConfirm}
               disabled={!name.trim() || !phone.trim() || loading}
-              className="flex-1 py-2.5 rounded-xl gradient-background text-white text-sm font-semibold disabled:opacity-50 transition-opacity"
+              className="flex-1 py-2.5 rounded-xl bg-linear-to-r from-gradientblack to-green-800 text-white text-sm font-semibold disabled:opacity-50 transition-opacity"
             >
               {loading ? 'Confirmando...' : 'Confirmar'}
             </button>

@@ -4,7 +4,6 @@ import { Home } from '../pages/Home'
 import { Bookings } from '../pages/Bookings'
 import { Agendamentos } from '../pages/Agendamentos'
 import { Profile } from '../pages/Profile'
-import EventsPage from '../pages/Events'
 
 export function AppRoutes() {
   return (
@@ -14,7 +13,6 @@ export function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/agendamentos" element={<Agendamentos />} />
           <Route path="/perfil" element={<Profile />} />
-          <Route path="/eventos" element={<EventsPage />} />
           <Route path="/courts/:id" element={<Bookings />} />
         </Routes>
       </MainLayout>

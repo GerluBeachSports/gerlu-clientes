@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import LogoMeta from '../assets/logo-meta.png';
+import LogoGerlu from '../assets/logo-gerlu.svg';
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';   // ← Ícones simples e leves (recomendado)
+import { Menu, X } from 'lucide-react';
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -11,15 +11,15 @@ export function Navbar() {
 
   return (
     <header
-      className="fixed top-0 left-0 z-50 w-full bg-maingreen text-white"
+      className="fixed top-0 left-0 z-50 w-full bg-brand text-white"
     >
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-6 py-2">
         {/* Logo */}
         <Link to="/" onClick={closeMenu}>
-          <img 
-            src={LogoMeta} 
-            alt="Logo Meta Centro Esportivo" 
-            className="h-10 w-auto object-contain" 
+          <img
+            src={LogoGerlu}
+            alt="Logo Gerlu Beach Sports"
+            className="h-14 lg:h-16 w-auto object-contain"
           />
         </Link>
 
@@ -30,9 +30,6 @@ export function Navbar() {
           </Link>
           <Link to="/agendamentos" className="navbar-button hover:text-white/80 transition-colors">
             Agendamentos
-          </Link>
-          <Link to="/eventos" className="navbar-button hover:text-white/80 transition-colors">
-            Eventos
           </Link>
           <Link to="/perfil" className="navbar-button hover:text-white/80 transition-colors">
             Perfil
@@ -51,7 +48,7 @@ export function Navbar() {
 
       {/* Menu Mobile */}
       {menuOpen && (
-        <div className="md:hidden border-t border-white/20 bg-maingreen">
+        <div className="md:hidden border-t border-white/20 bg-brand">
           <nav className="flex flex-col px-6 py-4 gap-2 text-base">
             <Link
               to="/"
