@@ -25,12 +25,6 @@ export function Home() {
     .finally(() => setLoading(false))
 }, [])
   
-/*async function clearSession() {
-  await supabase.auth.signOut()
-  localStorage.clear()
-  window.location.reload()
-} */
-
 
   return (
     <section className="space-y-5 py-8">

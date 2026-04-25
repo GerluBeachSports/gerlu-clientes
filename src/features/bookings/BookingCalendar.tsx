@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
 type Props = {
   isOpen: boolean
@@ -43,10 +44,11 @@ useEffect(() => {
     if (!user) return
 
     const { data } = await supabase
-      .from('users')
-      .select('fullname, phone')
-      .eq('id', user.id)
-      .maybeSingle()
+    .from('users')
+    .select('fullname, phone')
+    .eq('id', user.id)
+    .eq('company_id', COMPANY_ID) // 👈
+    .maybeSingle()
 
     if (data) {
       setName(data.fullname ?? '')
@@ -64,10 +66,11 @@ useEffect(() => {
 
   const timer = setTimeout(async () => {
     const { data } = await supabase
-      .from('users')
-      .select('fullname, phone')
-      .eq('phone', phone.trim())
-      .maybeSingle()
+  .from('users')
+  .select('fullname, phone')
+  .eq('phone', phone.trim())
+  .eq('company_id', COMPANY_ID) // 👈
+  .maybeSingle()
 
     if (data) {
       setName(data.fullname ?? '')
@@ -94,10 +97,11 @@ if (!isOpen) return null
   try {
     // 1. Busca se já existe pelo telefone
     const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone', phone.trim())
-      .maybeSingle()
+    .from('users')
+    .select('id')
+    .eq('phone', phone.trim())
+    .eq('company_id', COMPANY_ID) // 👈
+    .maybeSingle()
 
     if (existingUser) {
       // Usuário já existe — só atualiza o nome se mudou e confirma
@@ -122,11 +126,12 @@ if (!isOpen) return null
     if (!user) throw new Error('Erro ao obter sessão.')
 
     // 3. Verifica se esse id Auth já tem registro (evita duplicar sessão)
-    const { data: existingById } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', user.id)
-      .maybeSingle()
+     const { data: existingById } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .eq('company_id', COMPANY_ID) // 👈
+    .maybeSingle()
 
     if (existingById) {
       // Sessão Auth já tem usuário — atualiza dados e confirma
@@ -141,12 +146,13 @@ if (!isOpen) return null
 
     // 4. Insere novo usuário
     const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        id: user.id,
-        fullname: name.trim(),
-        phone: phone.trim(),
-      })
+    .from('users')
+    .insert({
+      id: user.id,
+      fullname: name.trim(),
+      phone: phone.trim(),
+      company_id: COMPANY_ID, // 👈
+    })
 
     if (insertError) throw insertError
 

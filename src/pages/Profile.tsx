@@ -1,6 +1,7 @@
 import { Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
 type Profile = {
   fullname: string
@@ -13,87 +14,58 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
   function getFakeEmail(rawPhone: string) {
     const digits = rawPhone.replace(/\D/g, '')
     return `${digits}@quadra.app`
   }
 
-  // Passo 1 — verifica se o telefone já existe
-  async function handleCheckPhone() {
-    if (!phone) {
-      setError('Digite seu telefone.')
-      return
-    }
+  // Passo 1 — verifica telefone (adiciona filtro de empresa)
+async function handleCheckPhone() {
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('phone', phone)
+    .eq('company_id', COMPANY_ID) // 👈 evita conflito com usuário de outra empresa
+    .maybeSingle()
 
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { data: existing } = await supabase
-        .from('users')
-        .select('id')
-        .eq('phone', phone)
-        .maybeSingle()
-
-      if (existing) {
-        // Telefone já cadastrado — loga direto
-        const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: getFakeEmail(phone),
-          password: fakePassword,
-        })
-        if (signInError) throw new Error('Erro ao entrar. Tente novamente.')
-        onSuccess()
-      } else {
-        // Telefone novo — pede o nome
-        setStep('register')
-      }
-    } catch (err: any) {
-      setError(err.message ?? 'Erro ao verificar telefone.')
-    } finally {
-      setLoading(false)
-    }
+  if (existing) {
+    const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: getFakeEmail(phone),
+      password: fakePassword,
+    })
+    if (signInError) throw new Error('Erro ao entrar. Tente novamente.')
+    onSuccess()
+  } else {
+    setStep('register')
   }
+}
 
-  // Passo 2 — cadastra novo usuário
-  async function handleRegister() {
-    if (!fullName) {
-      setError('Digite seu nome.')
-      return
-    }
+async function handleRegister() {
+  const fakeEmail = getFakeEmail(phone)      
+  const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
 
-    setLoading(true)
-    setError(null)
+  const { data, error: signUpError } = await supabase.auth.signUp({
+    email: fakeEmail,
+    password: fakePassword,
+  })
 
-    try {
-      const fakeEmail = getFakeEmail(phone)
-      const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+  if (signUpError) throw signUpError
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: fakePassword,
-        options: { emailRedirectTo: undefined },
-      })
+  const { error: profileError } = await supabase
+    .from('users')
+    .insert({
+      id: data.user!.id,
+      fullname: fullName,
+      phone,
+      company_id: COMPANY_ID,
+    })
 
-      if (signUpError) throw signUpError
-
-      const user = data.user
-      if (!user) throw new Error('Erro ao criar conta.')
-
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({ id: user.id, fullname: fullName, phone })
-
-      if (profileError) throw profileError
-
-      onSuccess()
-    } catch (err: any) {
-      setError(err.message ?? 'Erro ao cadastrar.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  if (profileError) throw profileError
+  onSuccess()
+}
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
@@ -176,28 +148,26 @@ export function Profile() {
   const [showModal, setShowModal] = useState(false)
 
   function loadProfile() {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) {
-        setLoggedIn(false)
-        return
-      }
+  supabase.auth.getUser().then(async ({ data: { user } }) => {
+    if (!user) { setLoggedIn(false); return }
 
-      const { data: profileData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+    const { data: profileData, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .eq('company_id', COMPANY_ID) // 👈
+      .single()
 
-      if (error || !profileData) {
-        await supabase.auth.signOut()
-        setLoggedIn(false)
-        return
-      }
+    if (error || !profileData) {
+      await supabase.auth.signOut() // usuário não pertence a esta empresa
+      setLoggedIn(false)
+      return
+    }
 
-      setLoggedIn(true)
-      setProfile(profileData)
-    })
-  }
+    setLoggedIn(true)
+    setProfile(profileData)
+  })
+}
 
   useEffect(() => {
     loadProfile()

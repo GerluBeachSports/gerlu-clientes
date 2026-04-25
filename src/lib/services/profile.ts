@@ -1,5 +1,7 @@
 import { supabase } from '../supabaseClient'
 
+const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
+
 export async function getProfile() {
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -7,6 +9,7 @@ export async function getProfile() {
     .from('users')
     .select('*')
     .eq('id', user!.id)
+    .eq('company_id', COMPANY_ID) // 👈
     .single()
 
   if (error) throw error
@@ -20,6 +23,7 @@ export async function updateProfile(fullname: string, phone: string) {
     .from('users')
     .update({ fullname, phone })
     .eq('id', user!.id)
+    .eq('company_id', COMPANY_ID) // 👈
     .select()
     .single()
 

@@ -192,7 +192,7 @@ function getPricingForTime(time: string) {
           {selectedDay.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
-      {/* Banner Day Use — só aparece no sábado */}
+      {/* Banner Day Use — só aparece no sábado 
       {selectedDay.getDay() === 6 && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4 space-y-2">
           <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ function getPricingForTime(time: string) {
             ))}
           </div>
         </div>
-      )}
+      )}*/}
 
       {/* Esporte */}
       <div className="space-y-3">
@@ -243,28 +243,12 @@ function getPricingForTime(time: string) {
             Que horas vamos <strong>jogar?</strong>
           </p>
 
-          {selectedDay.getDay() === 0 ? (
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-5 space-y-3">
-              <p className="text-sm text-zinc-600 leading-relaxed">
-                🗓️ <strong>Domingo</strong> os horários são diferentes, entre em contato conosco e tenha mais informações!
-              </p>
-              
-                <a 
-                href="https://wa.me/5564992014270"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 w-fit bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl"
-              >
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
-                  className="w-4 h-4" 
-                />
-                Falar no WhatsApp
-              </a>
-            </div>
-          ) : Object.keys(allSlots).length === 0 ? (
-            <p className="text-sm text-zinc-400">Sem horários disponíveis para este dia.</p>
-          ) : (
+
+          {Object.keys(allSlots).length === 0 ? (
+          <p className="text-sm text-zinc-400">
+            Sem horários disponíveis para este dia.
+          </p>
+        ) : (
           Object.entries(allSlots).map(([period, times]) => (
             <div key={period} className="space-y-2">
               <span className="inline-block gradient-background text-white text-xs px-3 py-1 rounded-full">

@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 
 const HIDDEN_SPORT = 'Funcional na areia'
+const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
 export async function getCourts() {
   const { data, error } = await supabase
@@ -15,6 +16,8 @@ export async function getCourts() {
         )
       )
     `)
+    .eq('company_id', COMPANY_ID)  // 👈 filtro adicionado
+
   if (error) throw error
 
   return (data ?? []).map((court) => ({
@@ -42,7 +45,9 @@ export async function getCourtById(id: string) {
       )
     `)
     .eq('id', id)
+    .eq('company_id', COMPANY_ID) 
     .single()
+
   if (error) throw error
 
   return {
