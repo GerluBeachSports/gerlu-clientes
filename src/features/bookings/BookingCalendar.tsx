@@ -95,16 +95,14 @@ if (!isOpen) return null
   setLoading(true)
 
   try {
-    // 1. Busca se já existe pelo telefone
     const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('phone', phone.trim())
-    .eq('company_id', COMPANY_ID) // 👈
-    .maybeSingle()
+      .from('users')
+      .select('id')
+      .eq('phone', phone.trim())
+      .eq('company_id', COMPANY_ID)
+      .maybeSingle()
 
     if (existingUser) {
-      // Usuário já existe — só atualiza o nome se mudou e confirma
       await supabase
         .from('users')
         .update({ fullname: name.trim() })
@@ -114,45 +112,26 @@ if (!isOpen) return null
       return
     }
 
-    // 2. Usuário novo — cria sessão anônima
-    let { data: { user } } = await supabase.auth.getUser()
+    // Usuário novo — cria conta normal
+    const fakeEmail = `${phone.replace(/\D/g, '')}@quadra.app`
+    const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
 
-    if (!user) {
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) throw error
-      user = data.user
-    }
-
-    if (!user) throw new Error('Erro ao obter sessão.')
-
-    // 3. Verifica se esse id Auth já tem registro (evita duplicar sessão)
-     const { data: existingById } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', user.id)
-    .eq('company_id', COMPANY_ID) // 👈
-    .maybeSingle()
-
-    if (existingById) {
-      // Sessão Auth já tem usuário — atualiza dados e confirma
-      await supabase
-        .from('users')
-        .update({ fullname: name.trim(), phone: phone.trim() })
-        .eq('id', user.id)
-
-      await onConfirm()
-      return
-    }
-
-    // 4. Insere novo usuário
-    const { error: insertError } = await supabase
-    .from('users')
-    .insert({
-      id: user.id,
-      fullname: name.trim(),
-      phone: phone.trim(),
-      company_id: COMPANY_ID, // 👈
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: fakeEmail,
+      password: fakePassword,
     })
+
+    if (signUpError) throw signUpError
+    if (!data.user) throw new Error('Erro ao criar conta.')
+
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        fullname: name.trim(),
+        phone: phone.trim(),
+        company_id: COMPANY_ID,
+      })
 
     if (insertError) throw insertError
 
