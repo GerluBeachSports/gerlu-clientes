@@ -217,8 +217,8 @@ export function Profile() {
     <section className="px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-montserrat text-[#181918]">Perfil</h1>
-        <div className="rounded-full bg-[#204820] p-2">
-          <Pencil size={20} className="text-white cursor-pointer hover:opacity-80 transition-opacity" />
+        <div className="rounded-full border-[#181918] p-2">
+          <Pencil size={20} className="text-black cursor-pointer hover:opacity-80 transition-opacity" />
         </div>
       </div>
 
