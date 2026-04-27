@@ -12,7 +12,7 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
   const [step, setStep] = useState<'phone' | 'register'>('phone')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, _setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
