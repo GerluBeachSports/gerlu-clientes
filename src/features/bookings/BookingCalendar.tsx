@@ -113,27 +113,61 @@ if (!isOpen) return null
     }
 
     // Usuário novo — cria conta normal
-    const fakeEmail = `${phone.replace(/\D/g, '')}@quadra.app`
-    const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+    const digits = phone.replace(/\D/g, '')
+const fakeEmail = `${digits}_${COMPANY_ID}@quadra.app`
+const fakePassword = `quadra_${digits}`
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: fakeEmail,
-      password: fakePassword,
-    })
+let userId: string | null = null
 
-    if (signUpError) throw signUpError
-    if (!data.user) throw new Error('Erro ao criar conta.')
+const { data, error: signUpError } = await supabase.auth.signUp({
+  email: fakeEmail,
+  password: fakePassword,
+})
 
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        id: data.user.id,
-        fullname: name.trim(),
-        phone: phone.trim(),
-        company_id: COMPANY_ID,
+if (signUpError) {
+  if (signUpError.message.includes('User already registered')) {
+    
+    // 👉 fallback login
+    const { data: loginData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: fakePassword,
       })
 
-    if (insertError) throw insertError
+    if (signInError || !loginData.user) {
+      throw new Error('Erro ao autenticar usuário')
+    }
+
+    userId = loginData.user.id
+
+  } else {
+    throw signUpError
+  }
+} else {
+  if (!data.user) throw new Error('Erro ao criar conta.')
+  userId = data.user.id
+}
+
+// 🔒 evita 409
+const { data: existing } = await supabase
+  .from('users')
+  .select('id')
+  .eq('id', userId)
+  .eq('company_id', COMPANY_ID)
+  .maybeSingle()
+
+if (!existing) {
+  const { error: insertError } = await supabase
+    .from('users')
+    .insert({
+      id: userId,
+      fullname: name.trim(),
+      phone: phone.trim(),
+      company_id: COMPANY_ID,
+    })
+
+  if (insertError) throw insertError
+}
 
     await onConfirm()
 

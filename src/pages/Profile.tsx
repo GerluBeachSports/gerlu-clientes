@@ -17,8 +17,8 @@ function AuthModal({ onSuccess }: { onSuccess: () => void }) {
   const COMPANY_ID = import.meta.env.VITE_COMPANY_ID
 
   function getFakeEmail(rawPhone: string) {
-    const digits = rawPhone.replace(/\D/g, '')
-    return `${digits}@quadra.app`
+  const digits = rawPhone.replace(/\D/g, '')
+  return `${digits}_${COMPANY_ID}@quadra.app`
   }
 
   // Passo 1 — verifica telefone (adiciona filtro de empresa)
@@ -44,61 +44,71 @@ async function handleCheckPhone() {
 }
 
 async function handleRegister() {
-  const fakeEmail = getFakeEmail(phone)      
-  const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
+  try {
+    const fakeEmail = getFakeEmail(phone)
+    const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
 
-  const { data, error: signUpError } = await supabase.auth.signUp({
-  email: fakeEmail,
-  password: fakePassword,
-})
+    let userId: string | null = null
 
-if (signUpError) {
-  if (signUpError.message.includes('User already registered')) {
-    
-    // 👉 usuário já existe → faz login
-    const { data: loginData, error: signInError } =
-      await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: fakePassword,
-      })
-
-    if (signInError) throw signInError
-
-    // 👉 cria vínculo com a empresa
-    await supabase.from('users').insert({
-      id: loginData.user.id,
-      fullname: fullName.trim(),
-      phone: phone.trim(),
-      company_id: COMPANY_ID,
+    // tenta criar conta
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: fakeEmail,
+      password: fakePassword,
     })
 
-  } else {
-    throw signUpError
+    if (signUpError) {
+      if (signUpError.message.includes('User already registered')) {
+        
+        // 👉 login fallback
+        const { data: loginData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email: fakeEmail,
+            password: fakePassword,
+          })
+
+        if (signInError || !loginData.user) {
+          throw new Error('Erro ao autenticar usuário')
+        }
+
+        userId = loginData.user.id
+
+      } else {
+        throw signUpError
+      }
+
+    } else {
+      if (!data.user) throw new Error('Usuário não retornado')
+      userId = data.user.id
+    }
+
+    // 🔒 evita duplicado (409)
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .eq('company_id', COMPANY_ID)
+      .maybeSingle()
+
+    if (!existingUser) {
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          fullname: fullName.trim(),
+          phone: phone.trim(),
+          company_id: COMPANY_ID,
+        })
+
+      if (insertError) throw insertError
+    }
+
+    onSuccess()
+
+  } catch (err: any) {
+    console.error(err)
+    setError(err.message || 'Erro inesperado')
   }
-
-} else {
-  // 👉 fluxo normal (novo usuário)
-  await supabase.from('users').insert({
-    id: data.user!.id,
-    fullname: fullName.trim(),
-    phone: phone.trim(),
-    company_id: COMPANY_ID,
-  })
 }
-
-  const { error: profileError } = await supabase
-    .from('users')
-    .insert({
-      id: data.user!.id,
-      fullname: fullName,
-      phone,
-      company_id: COMPANY_ID,
-    })
-
-  if (profileError) throw profileError
-  onSuccess()
-}
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
       <div className="bg-white w-full max-w-md rounded-t-3xl px-6 py-8 space-y-6">
