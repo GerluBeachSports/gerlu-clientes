@@ -37,7 +37,7 @@ export function Home() {
             marcar o play de hoje?
           </span>
         </h1>
-        <a href="https://maps.app.goo.gl/Xy3jowSaDHdPq8WT7"
+        <a href="https://maps.app.goo.gl/WShYd1pvfmEj4BAp9"
         target="_blank"
         rel="noopener noreferrer"
         className="text-gradientblack text-sm w-full flex items-center gap-1"
