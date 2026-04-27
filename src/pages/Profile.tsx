@@ -48,11 +48,43 @@ async function handleRegister() {
   const fakePassword = `quadra_${phone.replace(/\D/g, '')}`
 
   const { data, error: signUpError } = await supabase.auth.signUp({
-    email: fakeEmail,
-    password: fakePassword,
-  })
+  email: fakeEmail,
+  password: fakePassword,
+})
 
-  if (signUpError) throw signUpError
+if (signUpError) {
+  if (signUpError.message.includes('User already registered')) {
+    
+    // 👉 usuário já existe → faz login
+    const { data: loginData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: fakePassword,
+      })
+
+    if (signInError) throw signInError
+
+    // 👉 cria vínculo com a empresa
+    await supabase.from('users').insert({
+      id: loginData.user.id,
+      fullname: fullName.trim(),
+      phone: phone.trim(),
+      company_id: COMPANY_ID,
+    })
+
+  } else {
+    throw signUpError
+  }
+
+} else {
+  // 👉 fluxo normal (novo usuário)
+  await supabase.from('users').insert({
+    id: data.user!.id,
+    fullname: fullName.trim(),
+    phone: phone.trim(),
+    company_id: COMPANY_ID,
+  })
+}
 
   const { error: profileError } = await supabase
     .from('users')
